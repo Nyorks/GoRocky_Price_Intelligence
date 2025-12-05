@@ -1,0 +1,112 @@
+// Prisma schema for GoRocky Price Intelligence Dashboard
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Competitor entity - stores information about competitors we're tracking
+model Competitor {
+  id             String           @id @default(uuid())
+  name           String           @unique
+  baseUrl        String
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  productMappings ProductMapping[]
+  priceSnapshots  PriceSnapshot[]
+  
+  @@map("competitors")
+}
+
+// Product entity - our internal products
+model Product {
+  id             String           @id @default(uuid())
+  internalSku    String           @unique
+  name           String
+  ourPrice       Float
+  currency       String           @default("USD")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  productMappings ProductMapping[]
+  priceSnapshots  PriceSnapshot[]
+  
+  @@map("products")
+}
+
+// ProductMapping - links our products to competitor product pages
+model ProductMapping {
+  id             String      @id @default(uuid())
+  productId      String
+  competitorId   String
+  productUrl     String
+  // JSON field for flexible selector configuration (stored as string in SQLite)
+  selectors      String?     // { priceSelector: ".price", nameSelector: "h1.title", discountSelector: ".discount" }
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  competitor     Competitor  @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  
+  @@unique([productId, competitorId])
+  @@map("product_mappings")
+}
+
+// PriceSnapshot - historical price data captured from competitors
+model PriceSnapshot {
+  id             String      @id @default(uuid())
+  productId      String
+  competitorId   String
+  price          Float
+  currency       String      @default("USD")
+  discountInfo   String?     // e.g., "20% off", "Buy 1 Get 1"
+  productName    String?     // Competitor's product name (for reference)
+  capturedAt     DateTime    @default(now())
+  
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  competitor     Competitor  @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  
+  @@index([productId, competitorId, capturedAt])
+  @@map("price_snapshots")
+}
+
+// ScrapeLog - audit trail for scraping operations
+model ScrapeLog {
+  id             String      @id @default(uuid())
+  status         String      // "running", "success", "partial", "failed"
+  totalMappings  Int
+  successCount   Int
+  failureCount   Int
+  errorDetails   String?     // Array of error objects (stored as JSON string in SQLite)
+  startedAt      DateTime    @default(now())
+  completedAt    DateTime?
+  runtime        Int?        // milliseconds
+  isScheduled    Boolean     @default(false) // Was this triggered by scheduler or manual?
+  retryCount     Int         @default(0)     // Number of retries attempted
+  
+  @@map("scrape_logs")
+}
+
+// ScheduleConfig - configuration for automated scraping
+model ScheduleConfig {
+  id             String      @id @default(uuid())
+  isEnabled      Boolean     @default(true)
+  cronExpression String      @default("0 3 * * *") // Daily at 3 AM by default
+  maxRetries     Int         @default(3)
+  retryDelayMs   Int         @default(5000) // 5 seconds between retries
+  description    String?     // Human-readable description of the schedule
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  @@map("schedule_config")
+}
+

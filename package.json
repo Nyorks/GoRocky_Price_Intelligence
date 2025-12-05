@@ -1,0 +1,21 @@
+{
+  "name": "gorocky-price-intelligence",
+  "version": "1.0.0",
+  "description": "End-to-end price intelligence dashboard",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "backend": "npm run dev --workspace=backend",
+    "frontend": "npm run dev --workspace=frontend",
+    "setup": "npm install && npm run setup --workspace=backend",
+    "seed": "npm run seed --workspace=backend",
+    "scrape": "npm run scrape --workspace=backend"
+  },
+  "keywords": ["price-intelligence", "scraping", "dashboard"],
+  "author": "",
+  "license": "MIT"
+}
+
